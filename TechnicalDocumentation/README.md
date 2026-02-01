@@ -43,7 +43,7 @@ The Location Service manages all geospatial data for AccountabilityAtlas. It han
 ## Domain Model
 
 ```
-Location
+Location (temporal - sys_period tracks history)
 ├── id: UUID
 ├── coordinates: Point  // PostGIS GEOGRAPHY(POINT, 4326)
 ├── displayName: String
@@ -51,8 +51,11 @@ Location
 ├── city: String (nullable)
 ├── state: String (nullable)
 ├── country: String (default: "USA")
+└── sysPeriod: tstzrange  // lower bound = created, NULL upper = current
+
+LocationStats (non-temporal - counters change frequently)
+├── locationId: UUID
 ├── videoCount: int (denormalized)
-├── createdAt: Instant
 └── updatedAt: Instant
 
 MarkerCluster (clustering response)
@@ -97,14 +100,15 @@ Server-side grid-based clustering using PostGIS:
 ```sql
 -- Cluster locations within viewport
 SELECT
-    ST_ClusterDBSCAN(coordinates::geometry, eps := grid_size_degrees, minpoints := 1)
+    ST_ClusterDBSCAN(l.coordinates::geometry, eps := grid_size_degrees, minpoints := 1)
         OVER() as cluster_id,
-    ST_Centroid(ST_Collect(coordinates::geometry)) as centroid,
+    ST_Centroid(ST_Collect(l.coordinates::geometry)) as centroid,
     COUNT(*) as count,
-    ARRAY_AGG(id ORDER BY video_count DESC LIMIT 5) as sample_ids
-FROM content.locations
+    ARRAY_AGG(l.id ORDER BY ls.video_count DESC LIMIT 5) as sample_ids
+FROM content.locations l
+LEFT JOIN content.location_stats ls ON l.id = ls.location_id
 WHERE ST_Intersects(
-    coordinates::geometry,
+    l.coordinates::geometry,
     ST_MakeEnvelope(min_lng, min_lat, max_lng, max_lat, 4326)
 )
 GROUP BY cluster_id;
@@ -120,8 +124,8 @@ Cluster behavior by zoom level:
 
 | Event | Action |
 |-------|--------|
-| VideoApproved | Increment video_count for associated locations |
-| VideoDeleted | Decrement video_count for associated locations |
+| VideoApproved | Increment location_stats.video_count for associated locations |
+| VideoDeleted | Decrement location_stats.video_count for associated locations |
 
 ## Caching Strategy
 
