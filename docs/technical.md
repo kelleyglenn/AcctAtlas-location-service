@@ -35,7 +35,7 @@ The Location Service manages all geospatial data for AccountabilityAtlas. It han
 
 | Document | Status | Description |
 |----------|--------|-------------|
-| [api-specification.yaml](api-specification.yaml) | Planned | OpenAPI 3.0 specification |
+| [api-specification.yaml](api-specification.yaml) | Complete | OpenAPI 3.1 specification |
 | [database-schema.md](database-schema.md) | Planned | PostGIS schema documentation |
 | [clustering-algorithm.md](clustering-algorithm.md) | Planned | Marker clustering implementation |
 | [spatial-queries.md](spatial-queries.md) | Planned | PostGIS query patterns |

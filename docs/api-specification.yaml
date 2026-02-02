@@ -1,0 +1,609 @@
+openapi: 3.1.0
+info:
+  title: AccountabilityAtlas Location Service API
+  version: 1.0.0
+  description: |
+    Geospatial data management for AccountabilityAtlas.
+    Handles location storage, spatial queries, marker clustering, and geocoding.
+
+    ## Access Patterns
+    - **Public (via Gateway)**: `https://api.accountabilityatlas.com/api/v1/locations/...`
+    - **Internal (service-to-service)**: `http://location-service:8083/locations/...`
+
+    The API Gateway adds the `/api/v1` prefix for public requests.
+  contact:
+    name: AccountabilityAtlas Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8083
+    description: Local development (direct)
+  - url: http://location-service:8083
+    description: Internal service mesh (Kubernetes/ECS service discovery)
+  - url: https://api.accountabilityatlas.com/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Locations
+    description: Location CRUD and spatial queries
+  - name: Clustering
+    description: Map marker clustering
+  - name: Geocoding
+    description: Address/coordinate conversion
+
+security:
+  - bearerAuth: []
+
+paths:
+  /locations:
+    get:
+      operationId: listLocations
+      summary: List locations within bounding box
+      description: |
+        Returns locations within the specified geographic bounding box.
+        Used for map display when zoom level is high enough to show individual markers.
+      tags: [Locations]
+      security: []
+      parameters:
+        - name: bbox
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^-?\\d+\\.?\\d*,-?\\d+\\.?\\d*,-?\\d+\\.?\\d*,-?\\d+\\.?\\d*$"
+          description: "Bounding box: minLng,minLat,maxLng,maxLat"
+          example: "-122.5,37.5,-122.0,38.0"
+        - name: amendments
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [FIRST, SECOND, FOURTH, FIFTH]
+          style: form
+          explode: true
+          description: Filter locations by videos with these amendments
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 500
+          description: Maximum number of locations to return
+      responses:
+        '200':
+          description: Locations within bounding box
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    post:
+      operationId: createLocation
+      summary: Create a new location
+      description: |
+        Create a new location point. Typically used when submitting a video
+        at a location that doesn't exist yet.
+      tags: [Locations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationRequest'
+      responses:
+        '201':
+          description: Location created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Location already exists at these coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "LOCATION_EXISTS"
+                message: "A location already exists within 10 meters of these coordinates"
+                existingLocationId: "660e8400-e29b-41d4-a716-446655440001"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /locations/{id}:
+    get:
+      operationId: getLocation
+      summary: Get location details
+      description: Returns full location details including video count.
+      tags: [Locations]
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Location details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /locations/cluster:
+    get:
+      operationId: getClusteredMarkers
+      summary: Get clustered markers for map viewport
+      description: |
+        Returns clustered location markers for efficient map display.
+        Clustering adapts to zoom level - lower zoom = larger clusters.
+      tags: [Clustering]
+      security: []
+      parameters:
+        - name: bbox
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^-?\\d+\\.?\\d*,-?\\d+\\.?\\d*,-?\\d+\\.?\\d*,-?\\d+\\.?\\d*$"
+          description: "Bounding box: minLng,minLat,maxLng,maxLat"
+          example: "-122.5,37.5,-122.0,38.0"
+        - name: zoom
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+          description: Map zoom level (1-20)
+        - name: gridSize
+          in: query
+          schema:
+            type: integer
+            minimum: 20
+            maximum: 200
+            default: 60
+          description: Clustering grid size in pixels
+      responses:
+        '200':
+          description: Clustered markers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /locations/geocode:
+    get:
+      operationId: geocodeAddress
+      summary: Convert address to coordinates
+      description: |
+        Geocode an address string to latitude/longitude coordinates.
+        Results are cached for 30 days to reduce API costs.
+      tags: [Geocoding]
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 500
+          description: Address to geocode
+          example: "123 Main St, Springfield, IL"
+      responses:
+        '200':
+          description: Geocoding result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeocodeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Address not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "ADDRESS_NOT_FOUND"
+                message: "Could not geocode the provided address"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /locations/reverse:
+    get:
+      operationId: reverseGeocode
+      summary: Convert coordinates to address
+      description: |
+        Reverse geocode latitude/longitude to a formatted address.
+        Results are cached for 30 days to reduce API costs.
+      tags: [Geocoding]
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 39.7817
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: -89.6501
+      responses:
+        '200':
+          description: Reverse geocoding result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReverseGeocodeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No address found for coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "LOCATION_NOT_FOUND"
+                message: "No address found for the provided coordinates"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from user-service.
+
+  schemas:
+    # Core domain objects
+    Location:
+      type: object
+      required: [id, coordinates, displayName, country, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        displayName:
+          type: string
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+          nullable: true
+        state:
+          type: string
+          maxLength: 50
+          nullable: true
+        country:
+          type: string
+          maxLength: 50
+          default: "USA"
+        createdAt:
+          type: string
+          format: date-time
+
+    LocationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Location'
+        - type: object
+          properties:
+            videoCount:
+              type: integer
+              minimum: 0
+              description: Number of videos at this location
+
+    LocationSummary:
+      type: object
+      required: [id, coordinates, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        displayName:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+          nullable: true
+        state:
+          type: string
+          maxLength: 50
+          nullable: true
+        videoCount:
+          type: integer
+          minimum: 0
+
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    MarkerCluster:
+      type: object
+      required: [id, coordinates, count]
+      properties:
+        id:
+          type: string
+          description: Cluster identifier (geohash-based)
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+          description: Cluster centroid
+        count:
+          type: integer
+          minimum: 1
+          description: Number of locations in cluster
+        sampleVideoIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 5
+          description: Up to 5 sample video IDs for preview
+        bounds:
+          $ref: '#/components/schemas/BoundingBox'
+          description: Bounding box containing all clustered points
+
+    BoundingBox:
+      type: object
+      required: [minLat, minLng, maxLat, maxLng]
+      properties:
+        minLat:
+          type: number
+          format: double
+        minLng:
+          type: number
+          format: double
+        maxLat:
+          type: number
+          format: double
+        maxLng:
+          type: number
+          format: double
+
+    # Request schemas
+    CreateLocationRequest:
+      type: object
+      required: [coordinates, displayName]
+      properties:
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        address:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 50
+        country:
+          type: string
+          maxLength: 50
+          default: "USA"
+      examples:
+        - coordinates:
+            latitude: 39.7817
+            longitude: -89.6501
+          displayName: "Springfield Police Department"
+          address: "800 E Monroe St"
+          city: "Springfield"
+          state: "IL"
+          country: "USA"
+
+    # Response schemas
+    LocationListResponse:
+      type: object
+      required: [locations, count]
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationSummary'
+        count:
+          type: integer
+          minimum: 0
+          description: Number of locations returned
+        truncated:
+          type: boolean
+          description: True if results were limited by max count
+
+    ClusterResponse:
+      type: object
+      required: [clusters, totalLocations]
+      properties:
+        clusters:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarkerCluster'
+        totalLocations:
+          type: integer
+          minimum: 0
+          description: Total locations represented by all clusters
+        zoom:
+          type: integer
+          description: Zoom level used for clustering
+
+    GeocodeResponse:
+      type: object
+      required: [coordinates, formattedAddress]
+      properties:
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        formattedAddress:
+          type: string
+          description: Standardized address from geocoding service
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        country:
+          type: string
+        placeId:
+          type: string
+          description: Google Maps place ID for reference
+
+    ReverseGeocodeResponse:
+      type: object
+      required: [formattedAddress]
+      properties:
+        formattedAddress:
+          type: string
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        country:
+          type: string
+        placeId:
+          type: string
+          description: Google Maps place ID
+
+    # Error schemas
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+        existingLocationId:
+          type: string
+          format: uuid
+          description: For LOCATION_EXISTS errors, the ID of the existing location
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation ID for debugging
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              - field: bbox
+                message: "Invalid bounding box format. Expected: minLng,minLat,maxLng,maxLat"
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Access token is missing or invalid
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    NotFound:
+      description: Requested resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Location not found
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMITED
+            message: Too many geocoding requests. Please retry later.
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
