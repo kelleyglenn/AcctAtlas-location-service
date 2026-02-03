@@ -17,7 +17,7 @@ The Location Service manages all geospatial data for AccountabilityAtlas. It han
 
 | Component | Technology |
 |-----------|------------|
-| Framework | Spring Boot 3.2.x |
+| Framework | Spring Boot 3.4.x |
 | Language | Java 21 |
 | Build | Gradle |
 | Database | PostgreSQL 15 + PostGIS 3.3 |
