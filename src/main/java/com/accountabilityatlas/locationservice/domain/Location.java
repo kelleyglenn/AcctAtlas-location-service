@@ -1,8 +1,10 @@
 package com.accountabilityatlas.locationservice.domain;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.locationtech.jts.geom.Point;
 
 @Entity
@@ -37,6 +39,10 @@ public class Location {
 
   @Column(length = 100)
   private String country;
+
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  private Instant createdAt;
 
   @OneToOne(mappedBy = "location", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private LocationStats stats;
