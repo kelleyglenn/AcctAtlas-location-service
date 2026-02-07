@@ -1,7 +1,6 @@
 package com.accountabilityatlas.locationservice.domain;
 
 import jakarta.persistence.*;
-import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
 import org.locationtech.jts.geom.Point;
@@ -38,9 +37,6 @@ public class Location {
 
   @Column(length = 100)
   private String country;
-
-  @Column(name = "sys_period", insertable = false, updatable = false)
-  private Instant createdAt;
 
   @OneToOne(mappedBy = "location", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private LocationStats stats;
