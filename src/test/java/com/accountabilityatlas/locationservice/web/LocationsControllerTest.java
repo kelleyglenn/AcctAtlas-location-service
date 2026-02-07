@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.accountabilityatlas.locationservice.domain.Location;
+import com.accountabilityatlas.locationservice.exception.LocationNotFoundException;
 import com.accountabilityatlas.locationservice.service.LocationService;
 import java.time.Instant;
 import java.util.List;
@@ -150,5 +151,44 @@ class LocationsControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.count").value(2))
         .andExpect(jsonPath("$.truncated").value(true));
+  }
+
+  @Test
+  void shouldReturn404WhenLocationNotFound() throws Exception {
+    UUID id = UUID.randomUUID();
+
+    when(locationService.getLocation(id)).thenThrow(new LocationNotFoundException(id));
+
+    mockMvc
+        .perform(get("/locations/{id}", id))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("LOCATION_NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("Location not found: " + id))
+        .andExpect(jsonPath("$.traceId").exists());
+  }
+
+  @Test
+  void shouldReturn400ForInvalidBboxFormat() throws Exception {
+    // Invalid bbox format is caught by OpenAPI validation regex, handled by GlobalExceptionHandler
+    mockMvc
+        .perform(get("/locations").param("bbox", "invalid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.message").value("Request validation failed"))
+        .andExpect(jsonPath("$.traceId").exists());
+  }
+
+  @Test
+  void shouldReturn400ForIllegalArgumentFromService() throws Exception {
+    // Service throws IllegalArgumentException for validation issues
+    when(locationService.getLocationsInBoundingBox(-123.0, 37.0, -122.0, 38.0))
+        .thenThrow(new IllegalArgumentException("minLng must be less than maxLng"));
+
+    mockMvc
+        .perform(get("/locations").param("bbox", "-123.0,37.0,-122.0,38.0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+        .andExpect(jsonPath("$.message").value("minLng must be less than maxLng"))
+        .andExpect(jsonPath("$.traceId").exists());
   }
 }

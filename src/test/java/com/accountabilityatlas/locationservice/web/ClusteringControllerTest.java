@@ -115,37 +115,32 @@ class ClusteringControllerTest {
 
   @Test
   void shouldRejectInvalidBbox() throws Exception {
-    // The API spec validates bbox format with a regex
-    // Validation throws ConstraintViolationException which should be handled by
-    // GlobalExceptionHandler
-    // For now, we verify the validation is triggered
-    org.junit.jupiter.api.Assertions.assertThrows(
-        jakarta.servlet.ServletException.class,
-        () ->
-            mockMvc.perform(
-                get("/locations/cluster").param("bbox", "invalid-bbox").param("zoom", "10")));
+    // Invalid bbox format is caught by OpenAPI validation regex, handled by GlobalExceptionHandler
+    mockMvc
+        .perform(get("/locations/cluster").param("bbox", "invalid-bbox").param("zoom", "10"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.traceId").exists());
   }
 
   @Test
   void shouldRejectZoomOutOfRange() throws Exception {
     // Zoom must be between 1 and 20
-    // Validation throws ConstraintViolationException which should be handled by
-    // GlobalExceptionHandler
-    org.junit.jupiter.api.Assertions.assertThrows(
-        jakarta.servlet.ServletException.class,
-        () ->
-            mockMvc.perform(
-                get("/locations/cluster")
-                    .param("bbox", "-123.0,37.0,-122.0,38.0")
-                    .param("zoom", "0")));
+    // When zoom=0 is provided, the controller should return validation error
+    mockMvc
+        .perform(
+            get("/locations/cluster").param("bbox", "-123.0,37.0,-122.0,38.0").param("zoom", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.traceId").exists());
 
-    org.junit.jupiter.api.Assertions.assertThrows(
-        jakarta.servlet.ServletException.class,
-        () ->
-            mockMvc.perform(
-                get("/locations/cluster")
-                    .param("bbox", "-123.0,37.0,-122.0,38.0")
-                    .param("zoom", "21")));
+    // When zoom=21 is provided, the controller should return validation error
+    mockMvc
+        .perform(
+            get("/locations/cluster").param("bbox", "-123.0,37.0,-122.0,38.0").param("zoom", "21"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.traceId").exists());
   }
 
   @Test
