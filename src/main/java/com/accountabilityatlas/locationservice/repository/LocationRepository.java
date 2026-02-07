@@ -19,4 +19,41 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
       WHERE ST_Within(l.coordinates, :bbox) = true
       """)
   List<Location> findWithinBoundingBox(@Param("bbox") Polygon bbox);
+
+  @Query(
+      value =
+          """
+          WITH clustered AS (
+            SELECT
+              id,
+              coordinates,
+              display_name,
+              ST_ClusterDBSCAN(coordinates, eps := :eps, minpoints := 2) OVER () AS cluster_id
+            FROM locations.locations
+            WHERE ST_Within(coordinates, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))
+          )
+          SELECT
+            ST_Y(ST_Centroid(ST_Collect(coordinates))) AS lat,
+            ST_X(ST_Centroid(ST_Collect(coordinates))) AS lng,
+            COUNT(*) AS count,
+            cluster_id
+          FROM clustered
+          WHERE cluster_id IS NOT NULL
+          GROUP BY cluster_id
+          UNION ALL
+          SELECT
+            ST_Y(coordinates) AS lat,
+            ST_X(coordinates) AS lng,
+            1 AS count,
+            NULL AS cluster_id
+          FROM clustered
+          WHERE cluster_id IS NULL
+          """,
+      nativeQuery = true)
+  List<Object[]> findClustersInBoundingBox(
+      @Param("minLng") double minLng,
+      @Param("minLat") double minLat,
+      @Param("maxLng") double maxLng,
+      @Param("maxLat") double maxLat,
+      @Param("eps") double eps);
 }
