@@ -10,6 +10,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -22,6 +23,7 @@ public class GeocodingService {
   private final RestClient restClient;
   private final MapboxProperties mapboxProperties;
 
+  @Autowired
   public GeocodingService(MapboxProperties mapboxProperties) {
     this.mapboxProperties = mapboxProperties;
     this.restClient = RestClient.builder().baseUrl(MAPBOX_BASE_URL).build();

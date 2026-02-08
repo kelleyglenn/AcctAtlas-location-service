@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: location_service
+      POSTGRES_USER: location_service
+      POSTGRES_PASSWORD: local_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U location_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  location-service:
+    image: acctatlas/location-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/location_service
+      SPRING_DATASOURCE_USERNAME: location_service
+      SPRING_DATASOURCE_PASSWORD: local_dev
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
+    profiles:
+      - app
+
+volumes:
+  pgdata:
