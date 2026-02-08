@@ -26,9 +26,12 @@ public class ClusteringService {
    * @return the epsilon value in degrees
    */
   double calculateEpsilon(int zoom) {
-    // At zoom 1 (world view): ~10 degrees
-    // At zoom 10 (city view): ~0.01 degrees (~1km)
-    // At zoom 15+ (street view): return individual locations
+    // Formula: 360 / 2^zoom (in degrees, not meters - has latitude distortion)
+    // zoom 1 (world): 180° - clusters aggressively
+    // zoom 5 (continent): ~11°
+    // zoom 10 (region): ~0.35° (~39 km at equator)
+    // zoom 15 (street): ~0.01° (~1.2 km at equator)
+    // zoom > 15: bypassed, returns individual locations (see HIGH_ZOOM_THRESHOLD)
     return 360.0 / Math.pow(2, zoom);
   }
 

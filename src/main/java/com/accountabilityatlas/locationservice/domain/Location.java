@@ -44,7 +44,7 @@ public class Location {
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
-  @OneToOne(mappedBy = "location", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @OneToOne(mappedBy = "location", cascade = CascadeType.ALL)
   private LocationStats stats;
 
   public double getLatitude() {
