@@ -3,3 +3,7 @@ spring:
     url: jdbc:postgresql://postgres:5432/location_service
     username: location_service
     password: ${DB_PASSWORD:local_dev}
+  flyway:
+    locations:
+      - classpath:db/migration
+      - classpath:db/devdata
