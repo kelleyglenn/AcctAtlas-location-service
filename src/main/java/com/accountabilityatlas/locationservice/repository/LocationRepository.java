@@ -36,7 +36,11 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
             ST_Y(ST_Centroid(ST_Collect(coordinates))) AS lat,
             ST_X(ST_Centroid(ST_Collect(coordinates))) AS lng,
             COUNT(*) AS count,
-            cluster_id
+            cluster_id,
+            MIN(ST_Y(coordinates)) AS min_lat,
+            MAX(ST_Y(coordinates)) AS max_lat,
+            MIN(ST_X(coordinates)) AS min_lng,
+            MAX(ST_X(coordinates)) AS max_lng
           FROM clustered
           WHERE cluster_id IS NOT NULL
           GROUP BY cluster_id
@@ -45,7 +49,11 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
             ST_Y(coordinates) AS lat,
             ST_X(coordinates) AS lng,
             1 AS count,
-            NULL AS cluster_id
+            NULL AS cluster_id,
+            ST_Y(coordinates) AS min_lat,
+            ST_Y(coordinates) AS max_lat,
+            ST_X(coordinates) AS min_lng,
+            ST_X(coordinates) AS max_lng
           FROM clustered
           WHERE cluster_id IS NULL
           """,

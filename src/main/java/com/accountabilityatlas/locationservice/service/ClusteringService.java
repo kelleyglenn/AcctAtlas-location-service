@@ -26,13 +26,13 @@ public class ClusteringService {
    * @return the epsilon value in degrees
    */
   double calculateEpsilon(int zoom) {
-    // Formula: 360 / 2^zoom (in degrees, not meters - has latitude distortion)
-    // zoom 1 (world): 180° - clusters aggressively
-    // zoom 5 (continent): ~11°
-    // zoom 10 (region): ~0.35° (~39 km at equator)
-    // zoom 15 (street): ~0.01° (~1.2 km at equator)
+    // Formula: 45 / 2^zoom (1/8th of viewport width in degrees)
+    // zoom 1 (world): 22.5° - regional clusters
+    // zoom 5 (continent): ~1.4°
+    // zoom 10 (region): ~0.044° (~4.9 km at equator)
+    // zoom 15 (street): ~0.00137° (~150 m at equator)
     // zoom > 15: bypassed, returns individual locations (see HIGH_ZOOM_THRESHOLD)
-    return 360.0 / Math.pow(2, zoom);
+    return 45.0 / Math.pow(2, zoom);
   }
 
   /**
@@ -67,20 +67,35 @@ public class ClusteringService {
       double lng = ((Number) row[1]).doubleValue();
       int count = ((Number) row[2]).intValue();
       Integer clusterId = row[3] != null ? ((Number) row[3]).intValue() : null;
+      double boundsMinLat = ((Number) row[4]).doubleValue();
+      double boundsMaxLat = ((Number) row[5]).doubleValue();
+      double boundsMinLng = ((Number) row[6]).doubleValue();
+      double boundsMaxLng = ((Number) row[7]).doubleValue();
 
       if (clusterId != null || count > 1) {
         // Real cluster - suggest zooming in 2 levels to see individual markers
-        clusters.add(new Cluster(lat, lng, count, zoom + 2));
+        clusters.add(
+            new Cluster(
+                lat, lng, count, zoom + 2, boundsMinLat, boundsMaxLat, boundsMinLng, boundsMaxLng));
       } else {
         // Single location - return as single-point cluster with no expansion zoom
-        clusters.add(new Cluster(lat, lng, 1, null));
+        clusters.add(
+            new Cluster(lat, lng, 1, null, boundsMinLat, boundsMaxLat, boundsMinLng, boundsMaxLng));
       }
     }
 
     return new ClusterResult(clusters, singleLocations);
   }
 
-  public record Cluster(double latitude, double longitude, int count, Integer expansionZoom) {}
+  public record Cluster(
+      double latitude,
+      double longitude,
+      int count,
+      Integer expansionZoom,
+      double minLat,
+      double maxLat,
+      double minLng,
+      double maxLng) {}
 
   public record ClusterResult(List<Cluster> clusters, List<Location> locations) {}
 }

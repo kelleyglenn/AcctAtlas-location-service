@@ -5,6 +5,7 @@ import com.accountabilityatlas.locationservice.service.ClusteringService;
 import com.accountabilityatlas.locationservice.service.ClusteringService.Cluster;
 import com.accountabilityatlas.locationservice.service.ClusteringService.ClusterResult;
 import com.accountabilityatlas.locationservice.web.api.ClusteringApi;
+import com.accountabilityatlas.locationservice.web.model.BoundingBox;
 import com.accountabilityatlas.locationservice.web.model.ClusterResponse;
 import com.accountabilityatlas.locationservice.web.model.Coordinates;
 import com.accountabilityatlas.locationservice.web.model.MarkerCluster;
@@ -34,13 +35,16 @@ public class ClusteringController implements ClusteringApi {
     // Convert service clusters to API model
     for (Cluster cluster : result.clusters()) {
       String id = generateClusterId(cluster.latitude(), cluster.longitude(), zoom);
+      BoundingBox boundingBox =
+          new BoundingBox(cluster.minLat(), cluster.minLng(), cluster.maxLat(), cluster.maxLng());
       MarkerCluster markerCluster =
           new MarkerCluster()
               .id(id)
               .coordinates(
                   new Coordinates().latitude(cluster.latitude()).longitude(cluster.longitude()))
               .count(cluster.count())
-              .sampleVideoIds(new ArrayList<>());
+              .sampleVideoIds(new ArrayList<>())
+              .bounds(boundingBox);
 
       markerClusters.add(markerCluster);
       totalLocations += cluster.count();
@@ -49,6 +53,12 @@ public class ClusteringController implements ClusteringApi {
     // Convert individual locations (at high zoom) to single-point clusters
     for (Location location : result.locations()) {
       String id = location.getId().toString();
+      BoundingBox locationBounds =
+          new BoundingBox(
+              location.getLatitude(),
+              location.getLongitude(),
+              location.getLatitude(),
+              location.getLongitude());
       MarkerCluster markerCluster =
           new MarkerCluster()
               .id(id)
@@ -57,7 +67,8 @@ public class ClusteringController implements ClusteringApi {
                       .latitude(location.getLatitude())
                       .longitude(location.getLongitude()))
               .count(1)
-              .sampleVideoIds(new ArrayList<>());
+              .sampleVideoIds(new ArrayList<>())
+              .bounds(locationBounds);
 
       markerClusters.add(markerCluster);
       totalLocations++;

@@ -66,13 +66,12 @@ class ClusteringServiceTest {
     double maxLat = 38.0;
 
     // Mock the raw cluster results from the repository
-    // Each row: [lat, lng, count, clusterId]
+    // Each row: [lat, lng, count, clusterId, minLat, maxLat, minLng, maxLng]
     List<Object[]> rawClusters =
         List.of(
-            new Object[] {37.7749, -122.4194, 5L, 0}, // cluster with 5 locations
-            new Object[] {37.8044, -122.2712, 3L, 1}, // cluster with 3 locations
-            new Object[] {37.6879, -122.4702, 1L, null} // single unclustered location
-            );
+            new Object[] {37.7749, -122.4194, 5L, 0, 37.5, 38.0, -122.5, -122.3},
+            new Object[] {37.8044, -122.2712, 3L, 1, 37.7, 37.9, -122.4, -122.1},
+            new Object[] {37.6879, -122.4702, 1L, null, 37.6879, 37.6879, -122.4702, -122.4702});
 
     when(locationRepository.findClustersInBoundingBox(
             eq(minLng), eq(minLat), eq(maxLng), eq(maxLat), anyDouble()))
@@ -89,16 +88,25 @@ class ClusteringServiceTest {
     assertThat(firstCluster.latitude()).isEqualTo(37.7749);
     assertThat(firstCluster.longitude()).isEqualTo(-122.4194);
     assertThat(firstCluster.expansionZoom()).isEqualTo(12); // zoom + 2
+    assertThat(firstCluster.minLat()).isEqualTo(37.5);
+    assertThat(firstCluster.maxLat()).isEqualTo(38.0);
+    assertThat(firstCluster.minLng()).isEqualTo(-122.5);
+    assertThat(firstCluster.maxLng()).isEqualTo(-122.3);
 
     // Second cluster should have 3 locations
     Cluster secondCluster = result.clusters().get(1);
     assertThat(secondCluster.count()).isEqualTo(3);
     assertThat(secondCluster.expansionZoom()).isEqualTo(12);
+    assertThat(secondCluster.minLat()).isEqualTo(37.7);
+    assertThat(secondCluster.maxLat()).isEqualTo(37.9);
 
     // Third is a single location (no cluster), should have null expansion zoom
     Cluster thirdCluster = result.clusters().get(2);
     assertThat(thirdCluster.count()).isEqualTo(1);
     assertThat(thirdCluster.expansionZoom()).isNull();
+    // Single location bounds should be the point itself
+    assertThat(thirdCluster.minLat()).isEqualTo(37.6879);
+    assertThat(thirdCluster.maxLat()).isEqualTo(37.6879);
   }
 
   @Test
@@ -121,17 +129,19 @@ class ClusteringServiceTest {
 
   @Test
   void shouldCalculateEpsilonCorrectly() {
-    // At zoom 1, epsilon should be ~180 degrees (half world)
+    // At zoom 1, epsilon should be 22.5 degrees (1/8 viewport)
     double epsilonZoom1 = clusteringService.calculateEpsilon(1);
-    assertThat(epsilonZoom1).isCloseTo(180.0, org.assertj.core.api.Assertions.within(0.1));
+    assertThat(epsilonZoom1).isCloseTo(22.5, org.assertj.core.api.Assertions.within(0.1));
 
-    // At zoom 10, epsilon should be ~0.35 degrees
+    // At zoom 10, epsilon should be ~0.044 degrees
     double epsilonZoom10 = clusteringService.calculateEpsilon(10);
-    assertThat(epsilonZoom10).isCloseTo(0.3515625, org.assertj.core.api.Assertions.within(0.001));
+    assertThat(epsilonZoom10)
+        .isCloseTo(0.0439453125, org.assertj.core.api.Assertions.within(0.001));
 
-    // At zoom 15, epsilon should be very small (~0.01 degrees)
+    // At zoom 15, epsilon should be very small (~0.00137 degrees)
     double epsilonZoom15 = clusteringService.calculateEpsilon(15);
-    assertThat(epsilonZoom15).isCloseTo(0.01098633, org.assertj.core.api.Assertions.within(0.0001));
+    assertThat(epsilonZoom15)
+        .isCloseTo(0.001373291, org.assertj.core.api.Assertions.within(0.0001));
 
     // Higher zoom = smaller epsilon
     assertThat(epsilonZoom10).isLessThan(epsilonZoom1);
@@ -139,9 +149,9 @@ class ClusteringServiceTest {
   }
 
   @Test
-  void shouldCalculateEpsilonWithFormula360DividedBy2ToThePowerOfZoom() {
+  void shouldCalculateEpsilonWithFormula45DividedBy2ToThePowerOfZoom() {
     for (int zoom = 1; zoom <= 20; zoom++) {
-      double expectedEpsilon = 360.0 / Math.pow(2, zoom);
+      double expectedEpsilon = 45.0 / Math.pow(2, zoom);
       double actualEpsilon = clusteringService.calculateEpsilon(zoom);
       assertThat(actualEpsilon).isEqualTo(expectedEpsilon);
     }

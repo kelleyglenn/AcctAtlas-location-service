@@ -42,9 +42,8 @@ class ClusteringControllerTest {
 
     List<Cluster> clusters =
         List.of(
-            new Cluster(37.7749, -122.4194, 5, 12), // cluster with 5 locations
-            new Cluster(37.8044, -122.2712, 3, 12) // cluster with 3 locations
-            );
+            new Cluster(37.7749, -122.4194, 5, 12, 37.5, 38.0, -122.5, -122.3),
+            new Cluster(37.8044, -122.2712, 3, 12, 37.7, 37.9, -122.4, -122.1));
     ClusterResult result = new ClusterResult(clusters, Collections.emptyList());
 
     when(clusteringService.getClusters(minLng, minLat, maxLng, maxLat, zoom)).thenReturn(result);
@@ -59,7 +58,13 @@ class ClusteringControllerTest {
         .andExpect(jsonPath("$.clusters[0].count").value(5))
         .andExpect(jsonPath("$.clusters[0].coordinates.latitude").value(37.7749))
         .andExpect(jsonPath("$.clusters[0].coordinates.longitude").value(-122.4194))
-        .andExpect(jsonPath("$.clusters[1].count").value(3));
+        .andExpect(jsonPath("$.clusters[0].bounds.minLat").value(37.5))
+        .andExpect(jsonPath("$.clusters[0].bounds.maxLat").value(38.0))
+        .andExpect(jsonPath("$.clusters[0].bounds.minLng").value(-122.5))
+        .andExpect(jsonPath("$.clusters[0].bounds.maxLng").value(-122.3))
+        .andExpect(jsonPath("$.clusters[1].count").value(3))
+        .andExpect(jsonPath("$.clusters[1].bounds.minLat").value(37.7))
+        .andExpect(jsonPath("$.clusters[1].bounds.maxLat").value(37.9));
   }
 
   @Test
@@ -151,7 +156,8 @@ class ClusteringControllerTest {
     double maxLng = -122.0;
     double maxLat = 38.0;
 
-    List<Cluster> clusters = List.of(new Cluster(37.7749, -122.4194, 5, 12));
+    List<Cluster> clusters =
+        List.of(new Cluster(37.7749, -122.4194, 5, 12, 37.5, 38.0, -122.5, -122.3));
     ClusterResult result = new ClusterResult(clusters, Collections.emptyList());
 
     when(clusteringService.getClusters(minLng, minLat, maxLng, maxLat, zoom)).thenReturn(result);
