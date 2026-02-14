@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.within;
 
 import com.accountabilityatlas.locationservice.domain.Location;
 import com.accountabilityatlas.locationservice.repository.LocationRepository;
+import com.accountabilityatlas.locationservice.service.ClusteringService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,13 +79,13 @@ class ClusteringIntegrationTest {
     // Colorado is isolated → individual marker
     // Bay Area centroid is ~(37.67, -122.2) and Texas centroid is ~(30.34, -97.67)
     // These are ~7° apart in latitude, far beyond epsilon → separate clusters
-    double eps = 45.0 / Math.pow(2, 4); // 2.8125°
+    double eps = ClusteringService.calculateEpsilon(4); // 2.8125°
 
     List<Object[]> results =
         locationRepository.findClustersInBoundingBox(-130.0, 24.0, -60.0, 50.0, eps);
 
     // Should NOT be one giant cluster; expect at least 2 distinct groups
-    assertThat(results.size()).isGreaterThanOrEqualTo(2);
+    assertThat(results).hasSizeGreaterThanOrEqualTo(2);
 
     // Count total locations across all results
     int totalCount = results.stream().mapToInt(row -> ((Number) row[2]).intValue()).sum();
@@ -96,7 +97,7 @@ class ClusteringIntegrationTest {
     // At zoom 6, epsilon = 45 / 2^6 = 0.703125°
     // Bay Area points span ~0.53° lat → should cluster together
     // Query just the Bay Area region
-    double eps = 45.0 / Math.pow(2, 6);
+    double eps = ClusteringService.calculateEpsilon(6);
 
     List<Object[]> results =
         locationRepository.findClustersInBoundingBox(-123.0, 37.0, -121.0, 38.5, eps);

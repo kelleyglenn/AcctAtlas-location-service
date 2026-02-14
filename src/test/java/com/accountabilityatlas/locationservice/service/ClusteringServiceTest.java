@@ -130,16 +130,16 @@ class ClusteringServiceTest {
   @Test
   void shouldCalculateEpsilonCorrectly() {
     // At zoom 1, epsilon should be 22.5 degrees (1/8 viewport)
-    double epsilonZoom1 = clusteringService.calculateEpsilon(1);
+    double epsilonZoom1 = ClusteringService.calculateEpsilon(1);
     assertThat(epsilonZoom1).isCloseTo(22.5, org.assertj.core.api.Assertions.within(0.1));
 
     // At zoom 10, epsilon should be ~0.044 degrees
-    double epsilonZoom10 = clusteringService.calculateEpsilon(10);
+    double epsilonZoom10 = ClusteringService.calculateEpsilon(10);
     assertThat(epsilonZoom10)
         .isCloseTo(0.0439453125, org.assertj.core.api.Assertions.within(0.001));
 
     // At zoom 15, epsilon should be very small (~0.00137 degrees)
-    double epsilonZoom15 = clusteringService.calculateEpsilon(15);
+    double epsilonZoom15 = ClusteringService.calculateEpsilon(15);
     assertThat(epsilonZoom15)
         .isCloseTo(0.001373291, org.assertj.core.api.Assertions.within(0.0001));
 
@@ -152,7 +152,7 @@ class ClusteringServiceTest {
   void shouldCalculateEpsilonWithFormula45DividedBy2ToThePowerOfZoom() {
     for (int zoom = 1; zoom <= 20; zoom++) {
       double expectedEpsilon = 45.0 / Math.pow(2, zoom);
-      double actualEpsilon = clusteringService.calculateEpsilon(zoom);
+      double actualEpsilon = ClusteringService.calculateEpsilon(zoom);
       assertThat(actualEpsilon).isEqualTo(expectedEpsilon);
     }
   }

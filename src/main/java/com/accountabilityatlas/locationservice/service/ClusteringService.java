@@ -25,12 +25,12 @@ public class ClusteringService {
    * @param zoom the map zoom level (1-20)
    * @return the epsilon value in degrees
    */
-  double calculateEpsilon(int zoom) {
+  public static double calculateEpsilon(int zoom) {
     // Formula: 45 / 2^zoom (1/8th of viewport width in degrees)
     // zoom 1 (world): 22.5° - regional clusters
     // zoom 5 (continent): ~1.4°
-    // zoom 10 (region): ~0.044° (~4.9 km at equator)
-    // zoom 15 (street): ~0.00137° (~150 m at equator)
+    // zoom 10 (region): ~0.044° (~4.9 km at the equator)
+    // zoom 15 (street): ~0.00137° (~150 m at the equator)
     // zoom > 15: bypassed, returns individual locations (see HIGH_ZOOM_THRESHOLD)
     return 45.0 / Math.pow(2, zoom);
   }
@@ -60,7 +60,6 @@ public class ClusteringService {
         locationRepository.findClustersInBoundingBox(minLng, minLat, maxLng, maxLat, eps);
 
     List<Cluster> clusters = new ArrayList<>();
-    List<Location> singleLocations = new ArrayList<>();
 
     for (Object[] row : rawClusters) {
       double lat = ((Number) row[0]).doubleValue();
@@ -84,7 +83,7 @@ public class ClusteringService {
       }
     }
 
-    return new ClusterResult(clusters, singleLocations);
+    return new ClusterResult(clusters, List.of());
   }
 
   public record Cluster(
