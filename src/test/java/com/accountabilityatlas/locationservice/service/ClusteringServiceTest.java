@@ -52,7 +52,7 @@ class ClusteringServiceTest {
 
     assertThat(result.clusters()).isEmpty();
     assertThat(result.locations()).hasSize(1);
-    assertThat(result.locations().get(0).getDisplayName()).isEqualTo("SF City Hall");
+    assertThat(result.locations().getFirst().getDisplayName()).isEqualTo("SF City Hall");
 
     verify(locationService).getLocationsInBoundingBox(minLng, minLat, maxLng, maxLat);
   }
@@ -83,7 +83,7 @@ class ClusteringServiceTest {
     assertThat(result.locations()).isEmpty();
 
     // First cluster should have 5 locations and suggest zoom + 2
-    Cluster firstCluster = result.clusters().get(0);
+    Cluster firstCluster = result.clusters().getFirst();
     assertThat(firstCluster.count()).isEqualTo(5);
     assertThat(firstCluster.latitude()).isEqualTo(37.7749);
     assertThat(firstCluster.longitude()).isEqualTo(-122.4194);
