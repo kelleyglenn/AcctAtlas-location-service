@@ -2,7 +2,6 @@ package com.accountabilityatlas.locationservice.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -23,19 +22,7 @@ public class SecurityConfig {
   }
 
   @Bean
-  @Order(1)
-  public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http) throws Exception {
-    http.securityMatcher("/internal/**")
-        .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-    return http.build();
-  }
-
-  @Bean
-  @Order(2)
-  public SecurityFilterChain publicSecurityFilterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

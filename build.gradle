@@ -33,6 +33,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
+    // AWS SQS
+    implementation "io.awspring.cloud:spring-cloud-aws-starter-sqs:${springCloudAwsVersion}"
+
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.flywaydb:flyway-core'
