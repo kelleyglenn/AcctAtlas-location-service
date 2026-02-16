@@ -142,6 +142,20 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
+  void shouldHandleMissingServletRequestParameterException() {
+    org.springframework.web.bind.MissingServletRequestParameterException ex =
+        new org.springframework.web.bind.MissingServletRequestParameterException("zoom", "Integer");
+
+    ResponseEntity<Error> response = handler.handleMissingParameter(ex);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
+    assertThat(response.getBody().getMessage()).isEqualTo("Required parameter 'zoom' is missing");
+    assertThat(response.getBody().getTraceId()).isNotNull();
+  }
+
+  @Test
   void shouldGenerateUniqueTraceIds() {
     UUID id = UUID.randomUUID();
     LocationNotFoundException ex = new LocationNotFoundException(id);

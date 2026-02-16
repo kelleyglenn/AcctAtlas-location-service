@@ -73,6 +73,35 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
+  @ExceptionHandler(UnauthorizedException.class)
+  public ResponseEntity<Error> handleUnauthorized(UnauthorizedException ex) {
+    Error error = new Error();
+    error.setCode("UNAUTHORIZED");
+    error.setMessage(ex.getMessage());
+    error.setTraceId(generateTraceId());
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+  }
+
+  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  public ResponseEntity<Error> handleAccessDenied(
+      org.springframework.security.access.AccessDeniedException ex) {
+    Error error = new Error();
+    error.setCode("FORBIDDEN");
+    error.setMessage("Access denied");
+    error.setTraceId(generateTraceId());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+  }
+
+  @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+  public ResponseEntity<Error> handleMissingParameter(
+      org.springframework.web.bind.MissingServletRequestParameterException ex) {
+    Error error = new Error();
+    error.setCode("VALIDATION_ERROR");
+    error.setMessage("Required parameter '" + ex.getParameterName() + "' is missing");
+    error.setTraceId(generateTraceId());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Error> handleIllegalArgument(IllegalArgumentException ex) {
     Error error = new Error();

@@ -25,12 +25,14 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
           """
           WITH clustered AS (
             SELECT
-              id,
-              coordinates,
-              display_name,
-              ST_ClusterDBSCAN(coordinates, eps := :eps, minpoints := 2) OVER () AS cluster_id
-            FROM locations.locations
-            WHERE ST_Within(coordinates, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))
+              l.id,
+              l.coordinates,
+              l.display_name,
+              ST_ClusterDBSCAN(l.coordinates, eps := :eps, minpoints := 2) OVER () AS cluster_id
+            FROM locations.locations l
+            JOIN locations.location_stats ls ON ls.location_id = l.id
+            WHERE ST_Within(l.coordinates, ST_MakeEnvelope(:minLng, :minLat, :maxLng, :maxLat, 4326))
+              AND ls.video_count > 0
           )
           SELECT
             ST_Y(ST_Centroid(ST_Collect(coordinates))) AS lat,
