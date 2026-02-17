@@ -9,7 +9,6 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import java.util.Set;
 import java.util.UUID;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -226,8 +225,8 @@ class GlobalExceptionHandlerTest {
     ResponseEntity<Error> response2 = handler.handleLocationNotFound(ex);
 
     // Assert
-      assertNotNull(response1.getBody());
-      assertNotNull(response2.getBody());
-      assertThat(response1.getBody().getTraceId()).isNotEqualTo(response2.getBody().getTraceId());
+    assertNotNull(response1.getBody());
+    assertNotNull(response2.getBody());
+    assertThat(response1.getBody().getTraceId()).isNotEqualTo(response2.getBody().getTraceId());
   }
 }
