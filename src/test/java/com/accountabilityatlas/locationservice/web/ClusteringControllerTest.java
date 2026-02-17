@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.accountabilityatlas.locationservice.config.LenientJwtAuthenticationFilter;
+import com.accountabilityatlas.locationservice.config.SecurityConfig;
 import com.accountabilityatlas.locationservice.domain.Location;
 import com.accountabilityatlas.locationservice.service.ClusteringService;
 import com.accountabilityatlas.locationservice.service.ClusteringService.Cluster;
@@ -19,10 +21,13 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ClusteringController.class)
+@Import({SecurityConfig.class, LenientJwtAuthenticationFilter.class})
 class ClusteringControllerTest {
 
   private static final GeometryFactory GEOMETRY_FACTORY =
@@ -31,6 +36,8 @@ class ClusteringControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private ClusteringService clusteringService;
+
+  @MockitoBean private JwtDecoder jwtDecoder;
 
   @Test
   void shouldReturnClustersAtLowZoom() throws Exception {

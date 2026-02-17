@@ -2,9 +2,12 @@ package com.accountabilityatlas.locationservice.web;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.accountabilityatlas.locationservice.config.LenientJwtAuthenticationFilter;
+import com.accountabilityatlas.locationservice.config.SecurityConfig;
 import com.accountabilityatlas.locationservice.domain.Location;
 import com.accountabilityatlas.locationservice.exception.LocationNotFoundException;
 import com.accountabilityatlas.locationservice.service.LocationService;
@@ -18,11 +21,14 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(LocationsController.class)
+@Import({SecurityConfig.class, LenientJwtAuthenticationFilter.class})
 class LocationsControllerTest {
 
   private static final GeometryFactory GEOMETRY_FACTORY =
@@ -31,6 +37,8 @@ class LocationsControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private LocationService locationService;
+
+  @MockitoBean private JwtDecoder jwtDecoder;
 
   @Test
   void shouldCreateLocation() throws Exception {
@@ -55,6 +63,7 @@ class LocationsControllerTest {
     mockMvc
         .perform(
             post("/locations")
+                .with(jwt().jwt(j -> j.subject(UUID.randomUUID().toString())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -190,5 +199,25 @@ class LocationsControllerTest {
         .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
         .andExpect(jsonPath("$.message").value("minLng must be less than maxLng"))
         .andExpect(jsonPath("$.traceId").exists());
+  }
+
+  @Test
+  void createLocation_noAuth_returns401() throws Exception {
+    // Act & Assert
+    mockMvc
+        .perform(
+            post("/locations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "coordinates": {
+                        "latitude": 37.7749,
+                        "longitude": -122.4194
+                      },
+                      "displayName": "Test Location"
+                    }
+                    """))
+        .andExpect(status().isUnauthorized());
   }
 }

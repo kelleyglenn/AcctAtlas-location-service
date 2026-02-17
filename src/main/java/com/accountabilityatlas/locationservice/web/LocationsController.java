@@ -1,6 +1,7 @@
 package com.accountabilityatlas.locationservice.web;
 
 import com.accountabilityatlas.locationservice.domain.Location;
+import com.accountabilityatlas.locationservice.exception.UnauthorizedException;
 import com.accountabilityatlas.locationservice.service.LocationService;
 import com.accountabilityatlas.locationservice.web.api.LocationsApi;
 import com.accountabilityatlas.locationservice.web.model.Coordinates;
@@ -16,6 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,6 +31,7 @@ public class LocationsController implements LocationsApi {
   @Override
   public ResponseEntity<com.accountabilityatlas.locationservice.web.model.Location> createLocation(
       CreateLocationRequest request) {
+    requireAuthentication();
     Location location =
         locationService.createLocation(
             request.getCoordinates().getLatitude(),
@@ -131,5 +136,12 @@ public class LocationsController implements LocationsApi {
       return OffsetDateTime.now(ZoneOffset.UTC);
     }
     return location.getCreatedAt().atOffset(ZoneOffset.UTC);
+  }
+
+  private void requireAuthentication() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !(authentication.getPrincipal() instanceof Jwt)) {
+      throw new UnauthorizedException("Authentication required");
+    }
   }
 }

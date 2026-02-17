@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.within;
 import com.accountabilityatlas.locationservice.domain.Location;
 import com.accountabilityatlas.locationservice.repository.LocationRepository;
 import com.accountabilityatlas.locationservice.service.ClusteringService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +54,8 @@ class ClusteringIntegrationTest {
 
   @Autowired private LocationRepository locationRepository;
 
+  @PersistenceContext private EntityManager entityManager;
+
   @BeforeEach
   void setUp() {
     locationRepository.deleteAll();
@@ -69,6 +73,12 @@ class ClusteringIntegrationTest {
 
     // Colorado (isolated point)
     saveLocation(-106.0553, 39.6335, "Silverthorne");
+
+    // Set video_count = 1 for all locations so cluster query includes them
+    entityManager
+        .createNativeQuery("UPDATE locations.location_stats SET video_count = 1")
+        .executeUpdate();
+    entityManager.flush();
   }
 
   @Test
@@ -134,6 +144,38 @@ class ClusteringIntegrationTest {
     double centroidLng = ((Number) bayAreaCluster[1]).doubleValue();
     assertThat(centroidLat).isBetween(minLat, maxLat);
     assertThat(centroidLng).isBetween(minLng, maxLng);
+  }
+
+  @Test
+  void shouldReturnAccurateBayAreaCentroid() {
+    // At zoom 5, epsilon = 45/32 = 1.40625 - all Bay Area points should cluster
+    double eps = ClusteringService.calculateEpsilon(5);
+
+    List<Object[]> results =
+        locationRepository.findClustersInBoundingBox(-123.0, 37.0, -121.0, 38.5, eps);
+
+    // Find the cluster with all 5 Bay Area locations
+    Object[] bayAreaCluster = null;
+    for (Object[] row : results) {
+      int count = ((Number) row[2]).intValue();
+      if (count == 5) {
+        bayAreaCluster = row;
+        break;
+      }
+    }
+
+    assertThat(bayAreaCluster).isNotNull();
+
+    double centroidLat = ((Number) bayAreaCluster[0]).doubleValue();
+    double centroidLng = ((Number) bayAreaCluster[1]).doubleValue();
+
+    // Expected centroid: arithmetic mean of coordinates
+    // SF(37.7749), Oakland(37.8044), SanJose(37.3382), Berkeley(37.8716), Fremont(37.5585)
+    //   -> avg 37.6695
+    // SF(-122.4194), Oakland(-122.2712), SanJose(-121.8906), Berkeley(-122.4098),
+    //   Fremont(-122.0322) -> avg -122.2046
+    assertThat(centroidLat).isCloseTo(37.67, within(0.1));
+    assertThat(centroidLng).isCloseTo(-122.20, within(0.1));
   }
 
   private void saveLocation(double lng, double lat, String name) {

@@ -7,3 +7,7 @@ spring:
     locations:
       - classpath:db/migration
       - classpath:db/devdata
+  cloud:
+    aws:
+      sqs:
+        endpoint: ${SPRING_CLOUD_AWS_SQS_ENDPOINT}
