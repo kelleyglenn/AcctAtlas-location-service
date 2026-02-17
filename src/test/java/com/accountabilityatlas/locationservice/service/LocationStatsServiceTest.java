@@ -65,7 +65,7 @@ class LocationStatsServiceTest {
     locationStatsService.decrementVideoCount(List.of(locationId));
 
     // Assert
-    assertThat(stats.getVideoCount()).isEqualTo(0);
+    assertThat(stats.getVideoCount()).isZero();
     verify(locationStatsRepository).save(stats);
   }
 
