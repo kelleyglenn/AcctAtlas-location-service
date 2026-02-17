@@ -142,6 +142,33 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
+  void shouldHandleUnauthorizedException() {
+    UnauthorizedException ex = new UnauthorizedException("Authentication required");
+
+    ResponseEntity<Error> response = handler.handleUnauthorized(ex);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getCode()).isEqualTo("UNAUTHORIZED");
+    assertThat(response.getBody().getMessage()).isEqualTo("Authentication required");
+    assertThat(response.getBody().getTraceId()).isNotNull();
+  }
+
+  @Test
+  void shouldHandleAccessDeniedException() {
+    org.springframework.security.access.AccessDeniedException ex =
+        new org.springframework.security.access.AccessDeniedException("Access denied");
+
+    ResponseEntity<Error> response = handler.handleAccessDenied(ex);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getCode()).isEqualTo("FORBIDDEN");
+    assertThat(response.getBody().getMessage()).isEqualTo("Access denied");
+    assertThat(response.getBody().getTraceId()).isNotNull();
+  }
+
+  @Test
   void shouldHandleMissingServletRequestParameterException() {
     org.springframework.web.bind.MissingServletRequestParameterException ex =
         new org.springframework.web.bind.MissingServletRequestParameterException("zoom", "Integer");
