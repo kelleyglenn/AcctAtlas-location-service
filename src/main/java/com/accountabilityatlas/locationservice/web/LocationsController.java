@@ -31,7 +31,7 @@ public class LocationsController implements LocationsApi {
   @Override
   public ResponseEntity<com.accountabilityatlas.locationservice.web.model.Location> createLocation(
       CreateLocationRequest request) {
-    requireCurrentUserId();
+    requireAuthentication();
     Location location =
         locationService.createLocation(
             request.getCoordinates().getLatitude(),
@@ -138,11 +138,10 @@ public class LocationsController implements LocationsApi {
     return location.getCreatedAt().atOffset(ZoneOffset.UTC);
   }
 
-  private UUID requireCurrentUserId() {
+  private void requireAuthentication() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
+    if (authentication == null || !(authentication.getPrincipal() instanceof Jwt)) {
       throw new UnauthorizedException("Authentication required");
     }
-    return UUID.fromString(jwt.getSubject());
   }
 }
