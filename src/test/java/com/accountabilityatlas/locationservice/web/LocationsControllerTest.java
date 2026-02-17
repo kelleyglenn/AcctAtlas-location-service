@@ -202,7 +202,8 @@ class LocationsControllerTest {
   }
 
   @Test
-  void shouldReturn401WhenCreatingLocationWithoutAuth() throws Exception {
+  void createLocation_noAuth_returns401() throws Exception {
+    // Act & Assert
     mockMvc
         .perform(
             post("/locations")

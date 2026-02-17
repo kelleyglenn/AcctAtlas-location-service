@@ -1,6 +1,6 @@
 package com.accountabilityatlas.locationservice.config;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.awspring.cloud.sqs.support.converter.SqsMessagingMessageConverter;
@@ -11,11 +11,14 @@ class SqsConfigTest {
   private final SqsConfig sqsConfig = new SqsConfig();
 
   @Test
-  void sqsMessagingMessageConverter_createsConverterThatIgnoresPayloadTypeHeader() {
+  void sqsMessagingMessageConverter_validObjectMapper_createsConverter() {
+    // Arrange
     ObjectMapper objectMapper = new ObjectMapper();
 
+    // Act
     SqsMessagingMessageConverter converter = sqsConfig.sqsMessagingMessageConverter(objectMapper);
 
-    assertNotNull(converter);
+    // Assert
+    assertThat(converter).isNotNull();
   }
 }

@@ -22,51 +22,63 @@ class LocationStatsServiceTest {
   @InjectMocks private LocationStatsService locationStatsService;
 
   @Test
-  void incrementVideoCount_incrementsExistingStats() {
+  void incrementVideoCount_existingStats_incrementsCount() {
+    // Arrange
     UUID locationId = UUID.randomUUID();
     LocationStats stats = new LocationStats();
     stats.setVideoCount(0);
     when(locationStatsRepository.findById(locationId)).thenReturn(Optional.of(stats));
 
+    // Act
     locationStatsService.incrementVideoCount(List.of(locationId));
 
+    // Assert
     assertThat(stats.getVideoCount()).isEqualTo(1);
     verify(locationStatsRepository).save(stats);
   }
 
   @Test
-  void decrementVideoCount_decrementsExistingStats() {
+  void decrementVideoCount_existingStats_decrementsCount() {
+    // Arrange
     UUID locationId = UUID.randomUUID();
     LocationStats stats = new LocationStats();
     stats.setVideoCount(3);
     when(locationStatsRepository.findById(locationId)).thenReturn(Optional.of(stats));
 
+    // Act
     locationStatsService.decrementVideoCount(List.of(locationId));
 
+    // Assert
     assertThat(stats.getVideoCount()).isEqualTo(2);
     verify(locationStatsRepository).save(stats);
   }
 
   @Test
-  void decrementVideoCount_doesNotGoBelowZero() {
+  void decrementVideoCount_zeroCount_doesNotGoBelowZero() {
+    // Arrange
     UUID locationId = UUID.randomUUID();
     LocationStats stats = new LocationStats();
     stats.setVideoCount(0);
     when(locationStatsRepository.findById(locationId)).thenReturn(Optional.of(stats));
 
+    // Act
     locationStatsService.decrementVideoCount(List.of(locationId));
 
+    // Assert
     assertThat(stats.getVideoCount()).isEqualTo(0);
     verify(locationStatsRepository).save(stats);
   }
 
   @Test
-  void incrementVideoCount_skipsNonExistentLocation() {
+  void incrementVideoCount_nonExistentLocation_skipsWithoutSaving() {
+    // Arrange
     UUID locationId = UUID.randomUUID();
     when(locationStatsRepository.findById(locationId)).thenReturn(Optional.empty());
 
+    // Act
     locationStatsService.incrementVideoCount(List.of(locationId));
 
+    // Assert
     verify(locationStatsRepository, never()).save(any());
   }
 }

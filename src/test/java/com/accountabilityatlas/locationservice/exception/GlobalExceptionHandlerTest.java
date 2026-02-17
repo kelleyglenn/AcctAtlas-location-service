@@ -13,9 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 class GlobalExceptionHandlerTest {
 
@@ -27,12 +29,15 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleLocationNotFoundException() {
+  void handleLocationNotFound_validException_returns404WithCode() {
+    // Arrange
     UUID id = UUID.randomUUID();
     LocationNotFoundException ex = new LocationNotFoundException(id);
 
+    // Act
     ResponseEntity<Error> response = handler.handleLocationNotFound(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("LOCATION_NOT_FOUND");
@@ -41,11 +46,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleGeocodingNotFoundException() {
+  void handleGeocodingNotFound_addressQuery_returns404WithMessage() {
+    // Arrange
     GeocodingNotFoundException ex = new GeocodingNotFoundException("123 Main St");
 
+    // Act
     ResponseEntity<Error> response = handler.handleGeocodingNotFound(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("GEOCODING_NOT_FOUND");
@@ -54,11 +62,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleGeocodingNotFoundExceptionWithCoordinates() {
+  void handleGeocodingNotFound_coordinateQuery_returns404WithCoordinates() {
+    // Arrange
     GeocodingNotFoundException ex = new GeocodingNotFoundException(37.7749, -122.4194);
 
+    // Act
     ResponseEntity<Error> response = handler.handleGeocodingNotFound(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("GEOCODING_NOT_FOUND");
@@ -68,11 +79,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleIllegalArgumentException() {
+  void handleIllegalArgument_invalidInput_returns400() {
+    // Arrange
     IllegalArgumentException ex = new IllegalArgumentException("Invalid bounding box format");
 
+    // Act
     ResponseEntity<Error> response = handler.handleIllegalArgument(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("BAD_REQUEST");
@@ -81,7 +95,8 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleMethodArgumentNotValidException() {
+  void handleValidation_multipleFieldErrors_returns400WithDetails() {
+    // Arrange
     BindingResult bindingResult = Mockito.mock(BindingResult.class);
     FieldError fieldError1 = new FieldError("request", "latitude", "must not be null");
     FieldError fieldError2 = new FieldError("request", "longitude", "must be between -180 and 180");
@@ -91,8 +106,10 @@ class GlobalExceptionHandlerTest {
 
     MethodArgumentNotValidException ex = new MethodArgumentNotValidException(null, bindingResult);
 
+    // Act
     ResponseEntity<Error> response = handler.handleValidation(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
@@ -106,7 +123,8 @@ class GlobalExceptionHandlerTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  void shouldHandleConstraintViolationException() {
+  void handleConstraintViolation_singleViolation_returns400WithDetails() {
+    // Arrange
     ConstraintViolation<Object> violation = Mockito.mock(ConstraintViolation.class);
     Path path = Mockito.mock(Path.class);
     Mockito.when(path.toString()).thenReturn("zoom");
@@ -115,8 +133,10 @@ class GlobalExceptionHandlerTest {
 
     ConstraintViolationException ex = new ConstraintViolationException(Set.of(violation));
 
+    // Act
     ResponseEntity<Error> response = handler.handleConstraintViolation(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
@@ -129,11 +149,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleGenericException() {
+  void handleGenericException_unexpectedError_returns500() {
+    // Arrange
     Exception ex = new RuntimeException("Something went wrong");
 
+    // Act
     ResponseEntity<Error> response = handler.handleGenericException(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("INTERNAL_SERVER_ERROR");
@@ -142,11 +165,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleUnauthorizedException() {
+  void handleUnauthorized_missingAuth_returns401() {
+    // Arrange
     UnauthorizedException ex = new UnauthorizedException("Authentication required");
 
+    // Act
     ResponseEntity<Error> response = handler.handleUnauthorized(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("UNAUTHORIZED");
@@ -155,12 +181,14 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleAccessDeniedException() {
-    org.springframework.security.access.AccessDeniedException ex =
-        new org.springframework.security.access.AccessDeniedException("Access denied");
+  void handleAccessDenied_insufficientPermissions_returns403() {
+    // Arrange
+    AccessDeniedException ex = new AccessDeniedException("Access denied");
 
+    // Act
     ResponseEntity<Error> response = handler.handleAccessDenied(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("FORBIDDEN");
@@ -169,12 +197,15 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldHandleMissingServletRequestParameterException() {
-    org.springframework.web.bind.MissingServletRequestParameterException ex =
-        new org.springframework.web.bind.MissingServletRequestParameterException("zoom", "Integer");
+  void handleMissingParameter_missingZoom_returns400WithParameterName() {
+    // Arrange
+    MissingServletRequestParameterException ex =
+        new MissingServletRequestParameterException("zoom", "Integer");
 
+    // Act
     ResponseEntity<Error> response = handler.handleMissingParameter(ex);
 
+    // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
@@ -183,13 +214,16 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
-  void shouldGenerateUniqueTraceIds() {
+  void handleLocationNotFound_calledTwice_generatesUniqueTraceIds() {
+    // Arrange
     UUID id = UUID.randomUUID();
     LocationNotFoundException ex = new LocationNotFoundException(id);
 
+    // Act
     ResponseEntity<Error> response1 = handler.handleLocationNotFound(ex);
     ResponseEntity<Error> response2 = handler.handleLocationNotFound(ex);
 
+    // Assert
     assertThat(response1.getBody().getTraceId()).isNotEqualTo(response2.getBody().getTraceId());
   }
 }
