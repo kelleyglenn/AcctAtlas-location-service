@@ -1,6 +1,7 @@
 package com.accountabilityatlas.locationservice.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.accountabilityatlas.locationservice.web.model.Error;
 import jakarta.validation.ConstraintViolation;
@@ -8,6 +9,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -142,8 +144,8 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
     assertThat(response.getBody().getMessage()).isEqualTo("Request validation failed");
     assertThat(response.getBody().getDetails()).hasSize(1);
-    assertThat(response.getBody().getDetails().get(0).getField()).isEqualTo("zoom");
-    assertThat(response.getBody().getDetails().get(0).getMessage())
+    assertThat(response.getBody().getDetails().getFirst().getField()).isEqualTo("zoom");
+    assertThat(response.getBody().getDetails().getFirst().getMessage())
         .isEqualTo("must be between 1 and 20");
     assertThat(response.getBody().getTraceId()).isNotNull();
   }
@@ -224,6 +226,8 @@ class GlobalExceptionHandlerTest {
     ResponseEntity<Error> response2 = handler.handleLocationNotFound(ex);
 
     // Assert
-    assertThat(response1.getBody().getTraceId()).isNotEqualTo(response2.getBody().getTraceId());
+      assertNotNull(response1.getBody());
+      assertNotNull(response2.getBody());
+      assertThat(response1.getBody().getTraceId()).isNotEqualTo(response2.getBody().getTraceId());
   }
 }
