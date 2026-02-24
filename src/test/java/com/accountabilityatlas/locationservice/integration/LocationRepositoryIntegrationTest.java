@@ -3,7 +3,9 @@ package com.accountabilityatlas.locationservice.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.accountabilityatlas.locationservice.domain.Location;
+import com.accountabilityatlas.locationservice.domain.LocationStats;
 import com.accountabilityatlas.locationservice.repository.LocationRepository;
+import com.accountabilityatlas.locationservice.repository.LocationStatsRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -50,6 +53,8 @@ class LocationRepositoryIntegrationTest {
       new GeometryFactory(new PrecisionModel(), 4326);
 
   @Autowired private LocationRepository locationRepository;
+  @Autowired private LocationStatsRepository locationStatsRepository;
+  @Autowired private TestEntityManager entityManager;
 
   @BeforeEach
   void setUp() {
@@ -78,44 +83,66 @@ class LocationRepositoryIntegrationTest {
 
   @Test
   void shouldFindLocationsWithinBoundingBox() {
-    // Create location inside bbox (San Francisco)
-    Point sfPoint = GEOMETRY_FACTORY.createPoint(new Coordinate(-122.4194, 37.7749));
-    Location sfLocation =
-        Location.builder()
-            .coordinates(sfPoint)
-            .displayName("San Francisco")
-            .city("San Francisco")
-            .state("CA")
-            .country("USA")
-            .build();
-    locationRepository.save(sfLocation);
+    // Arrange — location inside bbox with video_count > 0
+    saveLocationWithVideoCount("San Francisco", -122.4194, 37.7749, 1);
 
-    // Create location outside bbox (Los Angeles)
-    Point laPoint = GEOMETRY_FACTORY.createPoint(new Coordinate(-118.2437, 34.0522));
-    Location laLocation =
-        Location.builder()
-            .coordinates(laPoint)
-            .displayName("Los Angeles")
-            .city("Los Angeles")
-            .state("CA")
-            .country("USA")
-            .build();
-    locationRepository.save(laLocation);
+    // Arrange — location outside bbox with video_count > 0
+    saveLocationWithVideoCount("Los Angeles", -118.2437, 34.0522, 1);
 
-    // Bounding box around San Francisco only
-    Polygon bbox =
-        GEOMETRY_FACTORY.createPolygon(
-            new Coordinate[] {
-              new Coordinate(-123.0, 37.0),
-              new Coordinate(-122.0, 37.0),
-              new Coordinate(-122.0, 38.0),
-              new Coordinate(-123.0, 38.0),
-              new Coordinate(-123.0, 37.0)
-            });
-
+    // Act
+    Polygon bbox = createBbox(-123.0, 37.0, -122.0, 38.0);
     List<Location> results = locationRepository.findWithinBoundingBox(bbox);
 
+    // Assert
     assertThat(results).hasSize(1);
-    assertThat(results.get(0).getDisplayName()).isEqualTo("San Francisco");
+    assertThat(results.getFirst().getDisplayName()).isEqualTo("San Francisco");
+  }
+
+  @Test
+  void shouldExcludeLocationsWithZeroVideoCount() {
+    // Arrange — location inside bbox but with video_count = 0
+    saveLocationWithVideoCount("Empty Location", -122.4194, 37.7749, 0);
+
+    // Act
+    Polygon bbox = createBbox(-123.0, 37.0, -122.0, 38.0);
+    List<Location> results = locationRepository.findWithinBoundingBox(bbox);
+
+    // Assert
+    assertThat(results).isEmpty();
+  }
+
+  private Location saveLocationWithVideoCount(
+      String displayName, double lng, double lat, int videoCount) {
+    Point point = GEOMETRY_FACTORY.createPoint(new Coordinate(lng, lat));
+    Location location =
+        Location.builder()
+            .coordinates(point)
+            .displayName(displayName)
+            .city(displayName)
+            .state("CA")
+            .country("USA")
+            .build();
+    location = locationRepository.saveAndFlush(location);
+
+    // Database trigger auto-creates location_stats with video_count=0;
+    // update the count to the desired value
+    LocationStats stats = locationStatsRepository.findById(location.getId()).orElseThrow();
+    stats.setVideoCount(videoCount);
+    locationStatsRepository.saveAndFlush(stats);
+
+    entityManager.clear();
+
+    return location;
+  }
+
+  private Polygon createBbox(double minLng, double minLat, double maxLng, double maxLat) {
+    return GEOMETRY_FACTORY.createPolygon(
+        new Coordinate[] {
+          new Coordinate(minLng, minLat),
+          new Coordinate(maxLng, minLat),
+          new Coordinate(maxLng, maxLat),
+          new Coordinate(minLng, maxLat),
+          new Coordinate(minLng, minLat)
+        });
   }
 }
