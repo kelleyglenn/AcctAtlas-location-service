@@ -15,8 +15,9 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
   @Query(
       """
       SELECT l FROM Location l
-      LEFT JOIN FETCH l.stats
+      JOIN FETCH l.stats ls
       WHERE ST_Within(l.coordinates, :bbox) = true
+        AND ls.videoCount > 0
       """)
   List<Location> findWithinBoundingBox(@Param("bbox") Polygon bbox);
 
